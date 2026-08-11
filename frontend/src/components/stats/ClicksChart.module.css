@@ -1,0 +1,10 @@
+.stateBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16rem;
+}
+
+.chartBox {
+  width: 100%;
+}

@@ -85,6 +85,43 @@ services:
     networks:
       - linkboard
 
+  # Отдельный инстанс backend для контрактных тестов: тот же образ и код, но
+  # подключённый к linkboard_test. Без него api-tests чистили бы тестовую базу,
+  # пока сервис читает и пишет в dev-базу linkboard — тесты проверяли бы не то
+  # состояние, которым управляют, и попутно затирали данные разработчика.
+  # Порт наружу не публикуется: обращение только по внутреннему имени.
+  backend-test:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      target: dev
+    container_name: linkboard-backend-test
+    restart: "no"
+    environment:
+      PORT: 8080
+      NODE_ENV: development
+      DATABASE_URL: ${TEST_DATABASE_URL:-postgres://linkboard:linkboard@postgres:5432/linkboard_test}
+      BASE_URL: ${TEST_BASE_URL:-http://localhost:8080}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "require('http').get('http://localhost:8080/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - linkboard
+
   api-tests:
     profiles: ["test"]
     build:
@@ -92,10 +129,11 @@ services:
     container_name: linkboard-api-tests
     restart: "no"
     environment:
-      API_URL: http://backend:8080
+      API_URL: http://backend-test:8080
+      BASE_URL: ${TEST_BASE_URL:-http://localhost:8080}
       DATABASE_URL: ${TEST_DATABASE_URL:-postgres://linkboard:linkboard@postgres:5432/linkboard_test}
     depends_on:
-      backend:
+      backend-test:
         condition: service_healthy
     networks:
       - linkboard

@@ -1,14 +1,15 @@
-/**
- * Создание ссылки — `/links/new`. Заглушка T6: структура и `data-testid`
- * из реестра (docs/api/contract.md, раздел 9.1) уже на месте, наполнение
- * `LinkForm` (POST /api/links, обработка CODE_TAKEN/VALIDATION_ERROR) —
- * задача T17.
- */
+import { LinkForm } from "../components/links/LinkForm";
+import { Card } from "../components/shared";
+import styles from "./CreateLinkPage.module.css";
+
+/** Создание ссылки (`/links/new`) — `POST /api/links` через `LinkForm`. */
 export function CreateLinkPage() {
   return (
-    <div>
+    <div className={styles.page}>
       <h1>Новая ссылка</h1>
-      <div data-testid="link-form">Форма создания ссылки — TODO T17</div>
+      <Card padding="lg">
+        <LinkForm />
+      </Card>
     </div>
   );
 }

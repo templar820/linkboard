@@ -1,0 +1,22 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.search {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
+
+.sort {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 11rem;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}

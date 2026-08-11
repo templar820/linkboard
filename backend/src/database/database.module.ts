@@ -6,9 +6,13 @@ import { AppConfigService } from '../config/app-config.service';
 /**
  * Подключение к PostgreSQL через DATABASE_URL (docker-compose.yml, сервис backend).
  *
- * - `autoLoadEntities: true` — сущности регистрируются самими фиче-модулями через
- *   `TypeOrmModule.forFeature([...])` (T7 добавит Link/ClickEvent), здесь их
- *   перечислять не нужно — приложение обязано стартовать и с пустой схемой.
+ * - Сущности подхватываются глобом, а не `autoLoadEntities`. Причина: при
+ *   autoLoadEntities в метаданные попадают только те сущности, которые кто-то
+ *   зарегистрировал через `TypeOrmModule.forFeature([...])`. Связь Link →
+ *   ClickEvent роняла старт приложения («Entity metadata for Link#clickEvents
+ *   was not found»), пока ClickEvent не был зарегистрирован ни одним модулем.
+ *   Глоб снимает зависимость метаданных от порядка написания фиче-модулей и
+ *   совпадает с тем, как устроен data-source.ts для CLI.
  * - `migrationsRun` включён только в development: миграции применяются
  *   автоматически при старте контейнера backend (см. docs/plans/linkboard.md §6.1).
  *   В production миграции прогоняются осознанно (`make migrate` / CI-шаг), не
@@ -25,7 +29,7 @@ import { AppConfigService } from '../config/app-config.service';
       useFactory: (config: AppConfigService) => ({
         type: 'postgres' as const,
         url: config.databaseUrl,
-        autoLoadEntities: true,
+        entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         synchronize: false,
         migrationsRun: config.isDevelopment,
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
