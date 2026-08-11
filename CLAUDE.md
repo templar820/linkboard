@@ -3,6 +3,7 @@
 Linkboard — сервис коротких ссылок со статистикой и admin-panel.
 Источник истины по API, схеме БД и структуре: `docs/plans/linkboard.md`.
 Текущий спринт: `sprints/`.
+Инварианты подпроектов — во вложенных `CLAUDE.md`: `backend/`, `frontend/`, `api-tests/`, `e2e-tests/`.
 
 ## Команды
 - `make start` / `make stop` / `make restart` / `make logs s=backend`
@@ -18,8 +19,10 @@ Linkboard — сервис коротких ссылок со статистик
 ## Инварианты — нарушать нельзя
 - Все `/api/*` отвечают конвертом `{ data, error }`, ровно одно поле non-null.
   Конверт делают TransformInterceptor и HttpExceptionFilter — в контроллерах руками не собирать.
-- Ошибки — только через HttpException с машинным `error.code` в SCREAMING_SNAKE.
-- `GET /:code` регистрируется последним и не перехватывает `/api/*`.
+- Ошибки — только через `ApiException` с машинным `error.code` в SCREAMING_SNAKE.
+  Голый `NotFoundException`/`BadRequestException` даёт `INTERNAL_ERROR` — см. `backend/CLAUDE.md`.
+- `GET /:code` не перехватывает `/api/*`: API-контроллеры объявляют полный путь
+  (`@Controller('api/...')`), редирект — `@Controller()` + `@Get(':code')`. Глобального префикса нет.
 - Редирект — 302 + `Cache-Control: no-store`. Не 301.
 - Ошибка записи клика логируется, но не ломает редирект.
 - `api-tests/` и `e2e-tests/` — отдельные npm-проекты. Не импортировать ничего
