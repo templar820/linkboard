@@ -3,13 +3,15 @@ import { AppConfigModule } from './config/app-config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { LinksModule } from './links/links.module';
+import { RedirectModule } from './redirect/redirect.module';
+import { StatsModule } from './stats/stats.module';
 
 /**
- * Корневой модуль. RedirectModule (T12, GET /:code, без префикса) подключается
- * координатором отдельно, чтобы не конфликтовать по файлам с этой задачей.
- * StatsModule (T13) ещё не написан — подключить при его появлении.
+ * Корневой модуль. Порядок импортов на маршрутизацию не влияет: `GET /:code`
+ * из RedirectModule — один сегмент пути, все API-контроллеры — два и больше
+ * (см. решение по маршрутизации в main.ts).
  */
 @Module({
-  imports: [AppConfigModule, DatabaseModule, HealthModule, LinksModule],
+  imports: [AppConfigModule, DatabaseModule, HealthModule, LinksModule, StatsModule, RedirectModule],
 })
 export class AppModule {}

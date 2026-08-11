@@ -26,6 +26,13 @@ Nest.js API на :8080. Контракт — `docs/api/contract.md` + `error-cod
 - **BIGINT приходит из `pg` строкой.** Колонки `id`, `clicks_count`, `link_id` идут через `bigintTransformer` (экспортируется из `src/links/entities/link.entity.ts`) → наружу всегда `number`, как требует контракт. Новые BIGINT-колонки — тоже через него.
 - PK объявлены через `@Column({ primary: true, generated: 'identity', generatedIdentity: 'ALWAYS' })`, а не `@PrimaryGeneratedColumn`: типы последнего не принимают `transformer`. В БД результат идентичен DDL.
 
+## Новая npm-зависимость
+`npm install` на хосте её в контейнер **не доставит**: `node_modules` живёт в именованном томе и перекрывает то, что лежит в образе. После установки на хосте нужно:
+```
+docker compose exec backend npm install && docker compose restart backend
+```
+Перезапуск обязателен: `npm install` не трогает `.ts`, поэтому `nest --watch` не перекомпилирует сам и продолжит показывать `Cannot find module`. Тот же том использует `backend-test` — ему нужен `--force-recreate`.
+
 ## Тесты
 - Здесь — только unit на моках, спеки рядом с кодом (`*.spec.ts`). Кейсы: `docs/testing/coverage-matrix.md`, раздел UNIT-BE.
 - HTTP-контракт проверяется **не здесь**, а в проекте `api-tests/`. Не дублировать.
