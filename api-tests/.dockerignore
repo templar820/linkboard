@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+*.log
+.env
+.env.*
+!.env.example
+playwright-report
+test-results
+.idea
+.vscode
+.DS_Store
+Dockerfile
+.dockerignore

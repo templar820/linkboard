@@ -1,0 +1,1137 @@
+openapi: 3.1.0
+
+info:
+  title: Linkboard API
+  version: 1.0.0
+  description: |
+    REST API сервиса коротких ссылок Linkboard: управление ссылками, аналитика
+    переходов и публичный редирект-эндпоинт.
+
+    ## Конверт ответа
+
+    Все ответы `application/json` (кроме успешного редиректа `GET /{code}`,
+    который отвечает `302` без тела) обёрнуты в конверт:
+
+    - Успех: `{ "data": <результат>, "error": null }`
+    - Ошибка: `{ "data": null, "error": { "code": "...", "message": "...", "details": [...] } }`
+
+    Инвариант: **`data` XOR `error`** — ровно одно из полей не `null`.
+
+    Подробности по правилам, кодам ошибок и соглашениям — см. `docs/api/contract.md`
+    и `docs/api/error-codes.md`.
+  contact:
+    name: Linkboard API contract
+    url: https://github.com/linkboard/linkboard
+
+servers:
+  - url: http://localhost:8080
+    description: Локальное окружение (docker-compose)
+
+security: []
+# Аутентификация admin-panel в v1 отсутствует (single-user, локальный запуск).
+# Явно объявлено как "без авторизации", а не пропущено, чтобы линтеры не считали
+# это упущением. Слой guards закладывается на будущее (см. docs/plans/linkboard.md, п.1).
+
+tags:
+  - name: Links
+    description: CRUD операции над короткими ссылками
+  - name: Link Stats
+    description: Аналитика по конкретной ссылке
+  - name: Global Stats
+    description: Аналитика по всем ссылкам (дашборд)
+  - name: Health
+    description: Проверка работоспособности сервиса
+  - name: Redirect
+    description: Публичный редирект по короткому коду
+
+paths:
+  # ---------------------------------------------------------------------
+  # Links CRUD
+  # ---------------------------------------------------------------------
+  /api/links:
+    post:
+      tags: [Links]
+      operationId: createLink
+      summary: Создать короткую ссылку
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+            example:
+              originalUrl: "https://example.com/very/long/path?utm_source=newsletter"
+              title: "Августовская рассылка"
+              customCode: "augnews"
+      responses:
+        '201':
+          description: Ссылка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkEnvelope'
+              example:
+                data:
+                  id: 42
+                  code: "r7Ab3xZ"
+                  shortUrl: "http://localhost:8080/r7Ab3xZ"
+                  originalUrl: "https://example.com/very/long/path?utm_source=newsletter"
+                  title: "Августовская рассылка"
+                  clicksCount: 0
+                  isActive: true
+                  createdAt: "2026-08-11T10:00:00.000Z"
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: customCode уже занят или зарезервирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "CODE_TAKEN"
+                  message: "Short code 'aug-news' is already in use"
+        '500':
+          description: Не удалось сгенерировать уникальный код за 5 попыток (теоретический случай)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "CODE_GENERATION_FAILED"
+                  message: "Failed to generate a unique short code after 5 attempts"
+
+    get:
+      tags: [Links]
+      operationId: listLinks
+      summary: Список ссылок со статистикой (пагинация, поиск, сортировка)
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/OrderParam'
+      responses:
+        '200':
+          description: Страница списка ссылок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkListEnvelope'
+              example:
+                data:
+                  items:
+                    - id: 42
+                      code: "r7Ab3xZ"
+                      shortUrl: "http://localhost:8080/r7Ab3xZ"
+                      originalUrl: "https://example.com/very/long/path"
+                      title: "Августовская рассылка"
+                      clicksCount: 1523
+                      isActive: true
+                      createdAt: "2026-08-11T10:00:00.000Z"
+                  page: 1
+                  limit: 20
+                  total: 137
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/links/{id}:
+    get:
+      tags: [Links]
+      operationId: getLink
+      summary: Получить одну ссылку
+      parameters:
+        - $ref: '#/components/parameters/LinkIdParam'
+      responses:
+        '200':
+          description: Ссылка найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkEnvelope'
+              example:
+                data:
+                  id: 42
+                  code: "r7Ab3xZ"
+                  shortUrl: "http://localhost:8080/r7Ab3xZ"
+                  originalUrl: "https://example.com/very/long/path"
+                  title: "Августовская рассылка"
+                  clicksCount: 1523
+                  isActive: true
+                  createdAt: "2026-08-11T10:00:00.000Z"
+                error: null
+        '400':
+          description: id не является числом
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Validation failed"
+                  details: ["id must be a numeric string"]
+        '404':
+          $ref: '#/components/responses/LinkNotFound'
+
+    patch:
+      tags: [Links]
+      operationId: updateLink
+      summary: Изменить title / isActive / originalUrl (code менять нельзя)
+      parameters:
+        - $ref: '#/components/parameters/LinkIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLinkRequest'
+            example:
+              title: "Новое имя"
+              isActive: false
+              originalUrl: "https://example.com/new"
+      responses:
+        '200':
+          description: Ссылка обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkEnvelope'
+              example:
+                data:
+                  id: 42
+                  code: "r7Ab3xZ"
+                  shortUrl: "http://localhost:8080/r7Ab3xZ"
+                  originalUrl: "https://example.com/new"
+                  title: "Новое имя"
+                  clicksCount: 1523
+                  isActive: false
+                  createdAt: "2026-08-11T10:00:00.000Z"
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/LinkNotFound'
+
+    delete:
+      tags: [Links]
+      operationId: deleteLink
+      summary: Удалить ссылку вместе с её кликами (CASCADE)
+      parameters:
+        - $ref: '#/components/parameters/LinkIdParam'
+      responses:
+        '200':
+          description: Ссылка удалена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResultEnvelope'
+              example:
+                data:
+                  deleted: true
+                error: null
+        '404':
+          $ref: '#/components/responses/LinkNotFound'
+
+  # ---------------------------------------------------------------------
+  # Per-link stats
+  # ---------------------------------------------------------------------
+  /api/links/{id}/stats/daily:
+    get:
+      tags: [Link Stats]
+      operationId: getLinkDailyStats
+      summary: Клики ссылки по дням
+      description: |
+        Ряд дней непрерывный: дни без кликов возвращаются с нулями, фронтенду
+        не нужно дозаполнять пропуски.
+      parameters:
+        - $ref: '#/components/parameters/LinkIdParam'
+        - $ref: '#/components/parameters/FromParam'
+        - $ref: '#/components/parameters/ToParam'
+      responses:
+        '200':
+          description: Статистика по дням
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyStatsEnvelope'
+              example:
+                data:
+                  from: "2026-07-13"
+                  to: "2026-08-11"
+                  points:
+                    - date: "2026-07-13"
+                      clicks: 0
+                      uniqueVisitors: 0
+                    - date: "2026-07-14"
+                      clicks: 87
+                      uniqueVisitors: 61
+                  totalClicks: 1523
+                  totalUnique: 980
+                error: null
+        '400':
+          description: Некорректные даты, from > to, диапазон > 366 дней
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "VALIDATION_ERROR"
+                  message: "Validation failed"
+                  details: ["from must be less than or equal to to"]
+        '404':
+          $ref: '#/components/responses/LinkNotFound'
+
+  /api/links/{id}/stats/referers:
+    get:
+      tags: [Link Stats]
+      operationId: getLinkRefererStats
+      summary: Топ источников переходов (referer) по ссылке
+      description: |
+        Referer нормализуется до хоста; пустой/отсутствующий Referer
+        отображается как `"(direct)"`.
+      parameters:
+        - $ref: '#/components/parameters/LinkIdParam'
+        - $ref: '#/components/parameters/FromParam'
+        - $ref: '#/components/parameters/ToParam'
+        - $ref: '#/components/parameters/StatsLimitParam'
+      responses:
+        '200':
+          description: Топ referer'ов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefererStatsEnvelope'
+              example:
+                data:
+                  items:
+                    - referer: "t.me"
+                      clicks: 640
+                    - referer: "(direct)"
+                      clicks: 512
+                    - referer: "google.com"
+                      clicks: 371
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/LinkNotFound'
+
+  /api/links/{id}/stats/user-agents:
+    get:
+      tags: [Link Stats]
+      operationId: getLinkUserAgentStats
+      summary: Срез кликов по браузерам и типам устройств
+      description: |
+        User-Agent парсится на бэкенде (`ua-parser-js`) и группируется по
+        браузеру и типу устройства (desktop / mobile / bot).
+      parameters:
+        - $ref: '#/components/parameters/LinkIdParam'
+        - $ref: '#/components/parameters/FromParam'
+        - $ref: '#/components/parameters/ToParam'
+      responses:
+        '200':
+          description: Срез по браузерам/устройствам
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAgentStatsEnvelope'
+              example:
+                data:
+                  browsers:
+                    - name: "Chrome"
+                      clicks: 900
+                    - name: "Safari"
+                      clicks: 400
+                  devices:
+                    - type: "desktop"
+                      clicks: 800
+                    - type: "mobile"
+                      clicks: 600
+                    - type: "bot"
+                      clicks: 123
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/LinkNotFound'
+
+  # ---------------------------------------------------------------------
+  # Global stats (dashboard)
+  # ---------------------------------------------------------------------
+  /api/stats/summary:
+    get:
+      tags: [Global Stats]
+      operationId: getStatsSummary
+      summary: Сводка для дашборда
+      responses:
+        '200':
+          description: Агрегированная сводка по всем ссылкам
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsSummaryEnvelope'
+              example:
+                data:
+                  totalLinks: 137
+                  activeLinks: 120
+                  totalClicks: 45210
+                  clicksToday: 312
+                  clicksLast7Days: 2140
+                  uniqueVisitorsLast7Days: 1533
+                error: null
+
+  /api/stats/daily:
+    get:
+      tags: [Global Stats]
+      operationId: getGlobalDailyStats
+      summary: Клики по дням по всем ссылкам
+      description: |
+        Те же query-параметры и формат ответа, что у
+        `GET /api/links/{id}/stats/daily`, но без привязки к конкретной ссылке.
+      parameters:
+        - $ref: '#/components/parameters/FromParam'
+        - $ref: '#/components/parameters/ToParam'
+      responses:
+        '200':
+          description: Статистика по дням (все ссылки)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyStatsEnvelope'
+              example:
+                data:
+                  from: "2026-07-13"
+                  to: "2026-08-11"
+                  points:
+                    - date: "2026-07-13"
+                      clicks: 210
+                      uniqueVisitors: 150
+                    - date: "2026-07-14"
+                      clicks: 340
+                      uniqueVisitors: 260
+                  totalClicks: 45210
+                  totalUnique: 30120
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/stats/top:
+    get:
+      tags: [Global Stats]
+      operationId: getTopLinks
+      summary: Топ ссылок по кликам за период
+      description: |
+        Считается по `click_events` за период `[from, to]`, а не по
+        денормализованному `clicksCount` — чтобы «топ за период» был честным.
+      parameters:
+        - $ref: '#/components/parameters/FromParam'
+        - $ref: '#/components/parameters/ToParam'
+        - $ref: '#/components/parameters/StatsLimitParam'
+      responses:
+        '200':
+          description: Топ ссылок за период
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopLinksEnvelope'
+              example:
+                data:
+                  items:
+                    - id: 42
+                      code: "r7Ab3xZ"
+                      title: "Августовская рассылка"
+                      shortUrl: "http://localhost:8080/r7Ab3xZ"
+                      clicks: 1200
+                    - id: 7
+                      code: "promo1"
+                      title: null
+                      shortUrl: "http://localhost:8080/promo1"
+                      clicks: 850
+                error: null
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  # ---------------------------------------------------------------------
+  # Health
+  # ---------------------------------------------------------------------
+  /api/health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Health-check сервиса и подключения к БД
+      responses:
+        '200':
+          description: Сервис и БД доступны
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+              example:
+                data:
+                  status: "ok"
+                  db: "up"
+                error: null
+        '503':
+          description: БД недоступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "DB_UNAVAILABLE"
+                  message: "Database connection is unavailable"
+
+  # ---------------------------------------------------------------------
+  # Public redirect
+  # ---------------------------------------------------------------------
+  /{code}:
+    get:
+      tags: [Redirect]
+      operationId: redirectByCode
+      summary: Публичный редирект по короткому коду (учитывает клик)
+      description: |
+        Не входит в префикс `/api` и регистрируется на бэкенде последним,
+        чтобы не перехватывать `/api/*`. Успешный ответ — `302` без тела;
+        клик асинхронно записывается в `click_events`, и `links.clicksCount`
+        инкрементируется. Ошибки (404/410) возвращаются в стандартном конверте.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Короткий код ссылки (base62, 3–16 символов)
+          schema:
+            type: string
+            pattern: '^[0-9a-zA-Z]{3,16}$'
+          example: "r7Ab3xZ"
+      responses:
+        '302':
+          description: Редирект на original_url; клик учтён
+          headers:
+            Location:
+              description: Целевой URL ссылки
+              schema:
+                type: string
+                format: uri
+              example: "https://example.com/very/long/path?utm_source=newsletter"
+            Cache-Control:
+              description: Запрещает браузерам кешировать редирект, чтобы каждый переход доходил до сервера
+              schema:
+                type: string
+                enum: ["no-store"]
+        '404':
+          description: Код не существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "LINK_NOT_FOUND"
+                  message: "Short link 'r7Ab3xZ' was not found"
+        '410':
+          description: Ссылка существует, но выключена (isActive = false); клик не учитывается
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              example:
+                data: null
+                error:
+                  code: "LINK_DISABLED"
+                  message: "Short link 'r7Ab3xZ' is disabled"
+
+components:
+  # -----------------------------------------------------------------------
+  # Reusable parameters
+  # -----------------------------------------------------------------------
+  parameters:
+    LinkIdParam:
+      name: id
+      in: path
+      required: true
+      description: Числовой идентификатор ссылки
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 42
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: Номер страницы (с единицы)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Размер страницы, максимум 100
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+
+    SearchParam:
+      name: search
+      in: query
+      required: false
+      description: Поиск по title / code / originalUrl (ILIKE, регистронезависимый, подстрока)
+      schema:
+        type: string
+        minLength: 1
+      example: "рассылка"
+
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      description: Поле сортировки
+      schema:
+        type: string
+        enum: [created_at, clicks_count]
+        default: created_at
+      example: "created_at"
+
+    OrderParam:
+      name: order
+      in: query
+      required: false
+      description: Направление сортировки
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+      example: "desc"
+
+    FromParam:
+      name: from
+      in: query
+      required: false
+      description: |
+        Начало периода, ISO-дата (`YYYY-MM-DD`), UTC. По умолчанию —
+        30 дней назад от `to`. Диапазон `from`–`to` не может превышать 366 дней.
+      schema:
+        type: string
+        format: date
+      example: "2026-07-13"
+
+    ToParam:
+      name: to
+      in: query
+      required: false
+      description: Конец периода, ISO-дата (`YYYY-MM-DD`), UTC. По умолчанию — сегодня (UTC).
+      schema:
+        type: string
+        format: date
+      example: "2026-08-11"
+
+    StatsLimitParam:
+      name: limit
+      in: query
+      required: false
+      description: Максимум элементов в срезе
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      example: 10
+
+  # -----------------------------------------------------------------------
+  # Reusable responses (errors)
+  # -----------------------------------------------------------------------
+  responses:
+    ValidationError:
+      description: Ошибка валидации входных данных
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Validation failed"
+              details:
+                - "originalUrl must be a valid http(s) URL"
+
+    LinkNotFound:
+      description: Ссылка с таким id не найдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            data: null
+            error:
+              code: "LINK_NOT_FOUND"
+              message: "Link with id 42 was not found"
+
+  # -----------------------------------------------------------------------
+  # Schemas
+  # -----------------------------------------------------------------------
+  schemas:
+    # --- Envelope building blocks -----------------------------------
+    ErrorCode:
+      type: string
+      description: Реестр кодов ошибок API. Полное описание — docs/api/error-codes.md
+      enum:
+        - VALIDATION_ERROR
+        - LINK_NOT_FOUND
+        - LINK_DISABLED
+        - CODE_TAKEN
+        - CODE_GENERATION_FAILED
+        - DB_UNAVAILABLE
+        - INTERNAL_ERROR
+
+    ErrorObject:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Человекочитаемое сообщение об ошибке (не для парсинга — парсить `code`)
+          example: "Validation failed"
+        details:
+          type: array
+          description: Опциональные подробности (например, список ошибок валидации по полям)
+          items:
+            type: string
+          example: ["originalUrl must be a valid http(s) URL"]
+
+    SuccessEnvelopeBase:
+      type: object
+      description: Базовая часть конверта успешного ответа. Используется через allOf с конкретным типом data.
+      required: [error]
+      properties:
+        error:
+          type: "null"
+
+    ErrorEnvelope:
+      type: object
+      description: Конверт ответа с ошибкой. Инвариант конверта — data XOR error.
+      required: [data, error]
+      properties:
+        data:
+          type: "null"
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+
+    # --- Domain schemas ------------------------------------------------
+    Link:
+      type: object
+      description: Короткая ссылка
+      required:
+        - id
+        - code
+        - shortUrl
+        - originalUrl
+        - title
+        - clicksCount
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 42
+        code:
+          type: string
+          description: Короткий код (base62, 7 симв. авто-генерация / 3–16 кастомный alias)
+          example: "r7Ab3xZ"
+        shortUrl:
+          type: string
+          format: uri
+          description: "Полный короткий URL: BASE_URL + '/' + code"
+          example: "http://localhost:8080/r7Ab3xZ"
+        originalUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          example: "https://example.com/very/long/path?utm_source=newsletter"
+        title:
+          type: [string, "null"]
+          maxLength: 255
+          example: "Августовская рассылка"
+        clicksCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Денормализованный счётчик кликов
+          example: 1523
+        isActive:
+          type: boolean
+          description: "false — ссылка мягко отключена, редирект отдаёт 410"
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 UTC
+          example: "2026-08-11T10:00:00.000Z"
+
+    CreateLinkRequest:
+      type: object
+      required: [originalUrl]
+      properties:
+        originalUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Только http/https, до 2048 символов
+          example: "https://example.com/very/long/path?utm_source=newsletter"
+        title:
+          type: string
+          maxLength: 255
+          description: Опциональное человекочитаемое имя
+          example: "Августовская рассылка"
+        customCode:
+          type: string
+          pattern: '^[0-9a-zA-Z]{3,16}$'
+          description: |
+            Опциональный кастомный alias, base62, 3–16 символов. Если не
+            передан — код генерируется автоматически (7 символов).
+            Зарезервированные значения (`api`, `health`, ...) недопустимы.
+          example: "augnews"
+
+    UpdateLinkRequest:
+      type: object
+      description: Все поля опциональны; code менять нельзя.
+      properties:
+        title:
+          type: [string, "null"]
+          maxLength: 255
+          example: "Новое имя"
+        isActive:
+          type: boolean
+          example: false
+        originalUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          example: "https://example.com/new"
+
+    LinkList:
+      type: object
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Link'
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        total:
+          type: integer
+          minimum: 0
+          description: Общее число ссылок, удовлетворяющих фильтру (без учёта пагинации)
+          example: 137
+
+    DeleteResult:
+      type: object
+      required: [deleted]
+      properties:
+        deleted:
+          type: boolean
+          example: true
+
+    DailyPoint:
+      type: object
+      required: [date, clicks, uniqueVisitors]
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-07-14"
+        clicks:
+          type: integer
+          minimum: 0
+          example: 87
+        uniqueVisitors:
+          type: integer
+          minimum: 0
+          description: Число уникальных посетителей за день (по ip_hash)
+          example: 61
+
+    DailyStats:
+      type: object
+      required: [from, to, points, totalClicks, totalUnique]
+      properties:
+        from:
+          type: string
+          format: date
+          example: "2026-07-13"
+        to:
+          type: string
+          format: date
+          example: "2026-08-11"
+        points:
+          type: array
+          description: Непрерывный ряд дней от from до to включительно, дни без кликов — с нулями
+          items:
+            $ref: '#/components/schemas/DailyPoint'
+        totalClicks:
+          type: integer
+          minimum: 0
+          example: 1523
+        totalUnique:
+          type: integer
+          minimum: 0
+          example: 980
+
+    RefererItem:
+      type: object
+      required: [referer, clicks]
+      properties:
+        referer:
+          type: string
+          description: "Хост источника перехода; пустой/отсутствующий Referer — \"(direct)\""
+          example: "t.me"
+        clicks:
+          type: integer
+          minimum: 0
+          example: 640
+
+    RefererStats:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: Отсортировано по clicks desc
+          items:
+            $ref: '#/components/schemas/RefererItem'
+
+    BrowserStat:
+      type: object
+      required: [name, clicks]
+      properties:
+        name:
+          type: string
+          example: "Chrome"
+        clicks:
+          type: integer
+          minimum: 0
+          example: 900
+
+    DeviceStat:
+      type: object
+      required: [type, clicks]
+      properties:
+        type:
+          type: string
+          enum: [desktop, mobile, tablet, bot, unknown]
+          example: "desktop"
+        clicks:
+          type: integer
+          minimum: 0
+          example: 800
+
+    UserAgentStats:
+      type: object
+      required: [browsers, devices]
+      properties:
+        browsers:
+          type: array
+          description: Отсортировано по clicks desc
+          items:
+            $ref: '#/components/schemas/BrowserStat'
+        devices:
+          type: array
+          description: Отсортировано по clicks desc
+          items:
+            $ref: '#/components/schemas/DeviceStat'
+
+    StatsSummary:
+      type: object
+      required:
+        - totalLinks
+        - activeLinks
+        - totalClicks
+        - clicksToday
+        - clicksLast7Days
+        - uniqueVisitorsLast7Days
+      properties:
+        totalLinks:
+          type: integer
+          minimum: 0
+          example: 137
+        activeLinks:
+          type: integer
+          minimum: 0
+          example: 120
+        totalClicks:
+          type: integer
+          minimum: 0
+          example: 45210
+        clicksToday:
+          type: integer
+          minimum: 0
+          description: Клики за текущие UTC-сутки
+          example: 312
+        clicksLast7Days:
+          type: integer
+          minimum: 0
+          example: 2140
+        uniqueVisitorsLast7Days:
+          type: integer
+          minimum: 0
+          example: 1533
+
+    TopLinkItem:
+      type: object
+      required: [id, code, title, shortUrl, clicks]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 42
+        code:
+          type: string
+          example: "r7Ab3xZ"
+        title:
+          type: [string, "null"]
+          example: "Августовская рассылка"
+        shortUrl:
+          type: string
+          format: uri
+          example: "http://localhost:8080/r7Ab3xZ"
+        clicks:
+          type: integer
+          minimum: 0
+          description: Клики за запрошенный период [from, to]
+          example: 1200
+
+    TopLinks:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: Отсортировано по clicks desc
+          items:
+            $ref: '#/components/schemas/TopLinkItem'
+
+    Health:
+      type: object
+      required: [status, db]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: "ok"
+        db:
+          type: string
+          enum: [up, down]
+          example: "up"
+
+    # --- Envelopes (allOf: SuccessEnvelopeBase + конкретный data) ------
+    LinkEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/Link'
+
+    LinkListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/LinkList'
+
+    DeleteResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/DeleteResult'
+
+    DailyStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/DailyStats'
+
+    RefererStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/RefererStats'
+
+    UserAgentStatsEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/UserAgentStats'
+
+    StatsSummaryEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/StatsSummary'
+
+    TopLinksEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/TopLinks'
+
+    HealthEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelopeBase'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              $ref: '#/components/schemas/Health'

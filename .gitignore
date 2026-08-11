@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+.idea/
+
+# Module Federation temporary files
+.__mf__temp
+
+# Playwright (e2e-tests)
+e2e-tests/playwright-report/
+e2e-tests/test-results/
+e2e-tests/blob-report/
+
+# TypeORM CLI temp
+*.tmp
+
+# docker-compose local overrides
+docker-compose.override.yml
