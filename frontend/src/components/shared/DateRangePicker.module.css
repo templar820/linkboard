@@ -1,0 +1,55 @@
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.presetGroup {
+  display: inline-flex;
+  padding: var(--space-1);
+  background-color: var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  gap: var(--space-1);
+}
+
+.presetButton {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.presetButton:hover {
+  color: var(--color-text-primary);
+}
+
+.presetButtonActive,
+.presetButtonActive:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.customGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.customLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.dateInput {
+  width: auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+}

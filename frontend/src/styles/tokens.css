@@ -1,0 +1,209 @@
+/**
+ * Дизайн-токены Linkboard admin-panel.
+ *
+ * Единственный источник правды для цвета/типографики/отступов/радиусов/теней
+ * во всём приложении. Компоненты (shared/*, layout/*, будущие links/*,
+ * stats/*) не должны использовать «сырые» hex/px — только эти переменные,
+ * чтобы визуальный язык оставался согласованным и легко перекладывался в
+ * тёмную тему в будущем (см. docs/design/ui-kit.md, раздел «Тёмная тема»).
+ *
+ * Подробное описание использования — docs/design/ui-kit.md.
+ */
+
+:root {
+  /* ---------------------------------------------------------------------
+   * Нейтральная палитра (slate). Используется для текста, границ, фонов.
+   * Контраст к белому фону (#ffffff) проверен на соответствие WCAG AA:
+   * neutral-900/700/600 проходят 4.5:1 даже для основного текста.
+   * ------------------------------------------------------------------- */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+
+  /* ---------------------------------------------------------------------
+   * Акцентный цвет (primary). Синий: используется для ссылок, активных
+   * состояний навигации, основных кнопок, линии кликов на графиках.
+   * ------------------------------------------------------------------- */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+
+  /* ---------------------------------------------------------------------
+   * Состояния: success/warning/danger. Для пар «текст на белом» и
+   * «белый текст на заливке» подобраны оттенки, реально дающие >= 4.5:1.
+   * Для warning контраст белого текста на amber низкий — поэтому warning
+   * всегда используется как тёмный текст на светлой заливке (badge/бейдж),
+   * а не как заливка кнопки с белым текстом.
+   * ------------------------------------------------------------------- */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+  --color-danger-800: #991b1b;
+
+  /* ---------------------------------------------------------------------
+   * Семантические токены поверхностей/текста/границ — то, чем реально
+   * пользуются компоненты. Один уровень непрямого обращения к палитре
+   * выше: если потребуется тёмная тема, меняются только эти переменные.
+   * ------------------------------------------------------------------- */
+  --color-bg: var(--color-neutral-50);
+  --color-surface: var(--color-neutral-0);
+  --color-surface-raised: var(--color-neutral-0);
+  --color-border: var(--color-neutral-200);
+  --color-border-strong: var(--color-neutral-300);
+
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-tertiary: var(--color-neutral-500);
+  --color-text-disabled: var(--color-neutral-400);
+  --color-text-inverse: var(--color-neutral-0);
+  --color-text-link: var(--color-accent-600);
+  --color-text-link-hover: var(--color-accent-700);
+
+  --color-accent: var(--color-accent-600);
+  --color-accent-hover: var(--color-accent-700);
+  --color-accent-subtle-bg: var(--color-accent-50);
+  --color-accent-subtle-border: var(--color-accent-200);
+
+  --color-success: var(--color-success-700);
+  --color-success-bg: var(--color-success-50);
+  --color-success-border: var(--color-success-100);
+  --color-success-text: var(--color-success-800);
+
+  --color-warning-bg: var(--color-warning-50);
+  --color-warning-border: var(--color-warning-100);
+  --color-warning-text: var(--color-warning-800);
+
+  --color-danger: var(--color-danger-600);
+  --color-danger-hover: var(--color-danger-700);
+  --color-danger-bg: var(--color-danger-50);
+  --color-danger-border: var(--color-danger-100);
+  --color-danger-text: var(--color-danger-800);
+
+  --color-focus-ring: var(--color-accent-600);
+
+  /* ---------------------------------------------------------------------
+   * Типографика
+   * ------------------------------------------------------------------- */
+  --font-family-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-family-mono:
+    "SFMono-Regular", ui-monospace, "Menlo", "Consolas", "Liberation Mono", monospace;
+
+  --font-size-xs: 0.75rem; /* 12px — вспомогательный текст, подписи */
+  --font-size-sm: 0.8125rem; /* 13px — второстепенный текст, ячейки таблиц */
+  --font-size-base: 0.875rem; /* 14px — базовый размер admin-panel */
+  --font-size-md: 1rem; /* 16px — акцентный текст, значения карточек */
+  --font-size-lg: 1.125rem; /* 18px — заголовки компонентов */
+  --font-size-xl: 1.375rem; /* 22px — заголовки страниц (h1) */
+  --font-size-2xl: 1.75rem; /* 28px — крупные числа в SummaryCards */
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ---------------------------------------------------------------------
+   * Отступы — шкала на базе 4px
+   * ------------------------------------------------------------------- */
+  --space-0: 0;
+  --space-1: 0.25rem; /* 4px */
+  --space-2: 0.5rem; /* 8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-8: 2rem; /* 32px */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px */
+  --space-16: 4rem; /* 64px */
+
+  /* ---------------------------------------------------------------------
+   * Радиусы и тени
+   * ------------------------------------------------------------------- */
+  --radius-sm: 0.25rem; /* 4px — мелкие элементы: чипы, инпуты */
+  --radius-md: 0.5rem; /* 8px — кнопки, поля, строки таблиц */
+  --radius-lg: 0.75rem; /* 12px — карточки, диалоги */
+  --radius-xl: 1rem; /* 16px — крупные контейнеры */
+  --radius-full: 9999px; /* переключатели, аватары, круглые бейджи */
+
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --shadow-lg: 0 12px 32px -8px rgb(15 23 42 / 0.18), 0 4px 8px -4px rgb(15 23 42 / 0.08);
+
+  /* ---------------------------------------------------------------------
+   * Переходы
+   * ------------------------------------------------------------------- */
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 120ms var(--easing-standard);
+  --transition-base: 180ms var(--easing-standard);
+  --transition-slow: 260ms var(--easing-standard);
+
+  /* ---------------------------------------------------------------------
+   * Z-index шкала — единая, чтобы наложения (модалки/тосты/сайдбар) не
+   * конфликтовали между компонентами, написанными разными агентами.
+   * ------------------------------------------------------------------- */
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+
+  /* ---------------------------------------------------------------------
+   * Разметка каркаса (Layout/Sidebar)
+   * ------------------------------------------------------------------- */
+  --layout-sidebar-width: 15rem; /* 240px */
+  --layout-content-max-width: 75rem; /* 1200px */
+  --layout-content-padding: var(--space-8);
+
+  /* ---------------------------------------------------------------------
+   * Палитра графиков (recharts) — используется в ClicksChart (2 линии:
+   * клики / уникальные посетители) и в UserAgentsPanel (категориальные
+   * срезы по браузерам и устройствам). Вынесена в токены, а не зашита в
+   * компоненты, чтобы T18/T19 могли переиспользовать один и тот же набор.
+   * ------------------------------------------------------------------- */
+  --chart-line-clicks: var(--color-accent-600); /* #2563eb */
+  --chart-line-unique: #f59e0b; /* amber-500 — контрастно к синему, различимо при дальтонизме */
+  --chart-grid: var(--color-neutral-200);
+  --chart-axis-text: var(--color-neutral-500);
+  --chart-tooltip-bg: var(--color-neutral-900);
+  --chart-tooltip-text: var(--color-neutral-0);
+
+  /* Категориальная палитра для срезов (браузеры/устройства/referer'ы) —
+   * до 8 визуально различимых цветов, порядок фиксирован. */
+  --chart-categorical-1: #2563eb; /* blue */
+  --chart-categorical-2: #f59e0b; /* amber */
+  --chart-categorical-3: #16a34a; /* green */
+  --chart-categorical-4: #dc2626; /* red */
+  --chart-categorical-5: #7c3aed; /* violet */
+  --chart-categorical-6: #0891b2; /* cyan */
+  --chart-categorical-7: #db2777; /* pink */
+  --chart-categorical-8: #64748b; /* neutral — «прочее»/bot/unknown, всегда последний */
+}
