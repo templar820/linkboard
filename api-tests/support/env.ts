@@ -5,8 +5,13 @@
  */
 export const API_URL = process.env.API_URL ?? 'http://localhost:8080';
 
-/** Строится backend'ом из его BASE_URL — по нему собираются shortUrl в ответах. */
-export const BASE_URL = process.env.BASE_URL ?? 'http://localhost:8080';
+/**
+ * Строится backend'ом из его BASE_URL — по нему собираются shortUrl в ответах.
+ * Имя переменной окружения здесь — TEST_SHORT_URL_BASE, не BASE_URL: Vitest
+ * (через Vite) резервирует ключ BASE_URL под свой import.meta.env и затирает
+ * им process.env.BASE_URL до импорта этого модуля.
+ */
+export const BASE_URL = process.env.TEST_SHORT_URL_BASE ?? 'http://localhost:8080';
 
 /**
  * Только тестовая база. К dev-базе `linkboard` подключаться нельзя:

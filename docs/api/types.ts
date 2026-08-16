@@ -53,6 +53,7 @@ export interface ApiErrorObject {
 export type ErrorCode =
   | "VALIDATION_ERROR"
   | "LINK_NOT_FOUND"
+  | "NOT_FOUND"
   | "LINK_DISABLED"
   | "CODE_TAKEN"
   | "CODE_GENERATION_FAILED"

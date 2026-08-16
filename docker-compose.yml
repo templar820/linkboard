@@ -130,7 +130,9 @@ services:
     restart: "no"
     environment:
       API_URL: http://backend-test:8080
-      BASE_URL: ${TEST_BASE_URL:-http://localhost:8080}
+      # Не BASE_URL: это имя резервирует под себя Vite/Vitest (import.meta.env),
+      # process.env.BASE_URL внутри тестового процесса окажется затёрт.
+      TEST_SHORT_URL_BASE: ${TEST_BASE_URL:-http://localhost:8080}
       DATABASE_URL: ${TEST_DATABASE_URL:-postgres://linkboard:linkboard@postgres:5432/linkboard_test}
     depends_on:
       backend-test:

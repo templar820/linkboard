@@ -2,7 +2,8 @@ import { Link } from "react-router";
 import { useUpdateLink } from "../../api/links";
 import type { Link as LinkModel } from "../../api/types";
 import { formatDateTime, formatNumber } from "../../lib/format";
-import { CopyButton, EmptyState, ErrorState, Table, cx, useToast, type TableColumn } from "../shared";
+import { CopyButton, EmptyState, ErrorState, Table, useToast, type TableColumn } from "../shared";
+import { ActiveToggle } from "./ActiveToggle";
 import styles from "./LinksTable.module.css";
 
 export interface LinksTableProps {
@@ -21,23 +22,18 @@ function ActiveToggleCell({ link }: { link: LinkModel }) {
   const { showError } = useToast();
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={link.isActive}
-      aria-label={link.isActive ? `Отключить ссылку ${link.code}` : `Включить ссылку ${link.code}`}
-      className={cx(styles.toggle, link.isActive && styles.toggleOn)}
-      data-testid="links-table-row-active-toggle"
+    <ActiveToggle
+      isActive={link.isActive}
       disabled={updateLink.isPending}
-      onClick={() => {
+      label={link.isActive ? `Отключить ссылку ${link.code}` : `Включить ссылку ${link.code}`}
+      data-testid="links-table-row-active-toggle"
+      onToggle={() => {
         updateLink.mutate(
           { isActive: !link.isActive },
           { onError: () => showError("Не удалось изменить статус ссылки") },
         );
       }}
-    >
-      <span className={styles.toggleThumb} aria-hidden="true" />
-    </button>
+    />
   );
 }
 

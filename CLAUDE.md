@@ -20,7 +20,7 @@ Linkboard — сервис коротких ссылок со статистик
 - Все `/api/*` отвечают конвертом `{ data, error }`, ровно одно поле non-null.
   Конверт делают TransformInterceptor и HttpExceptionFilter — в контроллерах руками не собирать.
 - Ошибки — только через `ApiException` с машинным `error.code` в SCREAMING_SNAKE.
-  Голый `NotFoundException`/`BadRequestException` даёт `INTERNAL_ERROR` — см. `backend/CLAUDE.md`.
+  Голые исключения Nest фильтр маппит по статусу (404 → `NOT_FOUND`), доменного кода из них не получить.
 - `GET /:code` не перехватывает `/api/*`: API-контроллеры объявляют полный путь
   (`@Controller('api/...')`), редирект — `@Controller()` + `@Get(':code')`. Глобального префикса нет.
 - Редирект — 302 + `Cache-Control: no-store`. Не 301.
@@ -33,7 +33,7 @@ Linkboard — сервис коротких ссылок со статистик
 
 ## Конвенции
 - JSON — camelCase, БД — snake_case, даты в API — ISO 8601 UTC.
-- Unit-спеки рядом с кодом: `*.spec.ts`.
+- Unit-спеки: frontend — рядом с кодом, backend — в `tests/` своего модуля (см. `backend/CLAUDE.md`).
 - Новые архитектурные решения — в `docs/plans/`, не в этот файл.
 - Идентификаторы и код — английский, комментарии и общение — русский.
 

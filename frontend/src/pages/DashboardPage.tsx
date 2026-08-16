@@ -4,24 +4,9 @@ import { useDailyStats } from "../api/stats";
 import { ClicksChart } from "../components/stats/ClicksChart";
 import { SummaryCards } from "../components/stats/SummaryCards";
 import { TopLinksTable } from "../components/stats/TopLinksTable";
-import { computePresetRange, type DateRangePreset, type DateRangeValue } from "../components/shared";
+import type { DateRangeValue } from "../components/shared";
+import { applyRangeToSearchParams, parseRangeSearchParams } from "../lib/dateRange";
 import styles from "./DashboardPage.module.css";
-
-/** period=custom требует ещё from/to — иначе откатываемся на 30 дней. */
-function parseRange(searchParams: URLSearchParams): DateRangeValue {
-  const period = searchParams.get("period");
-
-  if (period === "custom") {
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-    if (from !== null && to !== null && from.length > 0 && to.length > 0) {
-      return { preset: "custom", from, to };
-    }
-  }
-
-  const preset: DateRangePreset = period === "7" ? 7 : period === "90" ? 90 : 30;
-  return { preset, ...computePresetRange(preset) };
-}
 
 /**
  * Дашборд (`/`): сводка, график кликов с переключателем периода (7/30/90
@@ -29,21 +14,14 @@ function parseRange(searchParams: URLSearchParams): DateRangeValue {
  */
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const range = useMemo(() => parseRange(searchParams), [searchParams]);
+  const range = useMemo(() => parseRangeSearchParams(searchParams), [searchParams]);
   const dailyStats = useDailyStats({ from: range.from, to: range.to });
 
   function handleRangeChange(next: DateRangeValue) {
     setSearchParams(
       (previous) => {
         const params = new URLSearchParams(previous);
-        params.set("period", String(next.preset));
-        if (next.preset === "custom") {
-          params.set("from", next.from);
-          params.set("to", next.to);
-        } else {
-          params.delete("from");
-          params.delete("to");
-        }
+        applyRangeToSearchParams(params, next);
         return params;
       },
       { replace: true },

@@ -20,8 +20,13 @@ export class RedirectController {
     // 302, а не 301: 301 браузеры кешируют, и последующие переходы вообще не
     // дойдут до сервера — статистика кликов станет неполной. no-store страхует
     // от кеширования и промежуточными прокси (docs/plans/linkboard.md §1).
+    // response.redirect() пишет непустое тело ("Found. Redirecting to...") —
+    // контракт (docs/plans/linkboard.md) требует пустое тело у 302, поэтому
+    // статус и заголовок выставляются вручную.
+    response.status(HttpStatus.FOUND);
+    response.setHeader('Location', link.originalUrl);
     response.setHeader('Cache-Control', 'no-store');
-    response.redirect(HttpStatus.FOUND, link.originalUrl);
+    response.end();
 
     // Fire-and-forget: ответ уже отправлен, посетитель не ждёт запись клика.
     // Ошибки проглатываются внутри recordClick и только логируются.

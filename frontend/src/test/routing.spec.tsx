@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import { App } from "../App";
+import { exampleLink } from "./msw-handlers";
 
 function renderAppAt(initialEntry: string) {
   const queryClient = new QueryClient();
@@ -37,11 +38,13 @@ describe("Смоук-тест роутинга admin-panel", () => {
     expect(screen.getByTestId("link-form")).toBeInTheDocument();
   });
 
-  it("рендерит LinkDetailsPage на /links/:id", () => {
+  it("рендерит LinkDetailsPage на /links/:id", async () => {
     renderAppAt("/links/42");
 
-    expect(screen.getByRole("heading", { name: "Ссылка #42" })).toBeInTheDocument();
-    expect(screen.getByTestId("link-header")).toBeInTheDocument();
+    // LinkHeader появляется только после разрешения GET /api/links/:id
+    // (моковый ответ) — до этого страница показывает Spinner.
+    expect(await screen.findByTestId("link-header")).toBeInTheDocument();
+    expect(screen.getByTestId("link-header-short-url")).toHaveTextContent(exampleLink.shortUrl);
   });
 
   it("рендерит NotFoundPage на неизвестном маршруте", () => {

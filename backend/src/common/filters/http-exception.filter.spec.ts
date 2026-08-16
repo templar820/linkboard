@@ -1,5 +1,5 @@
 import type { ArgumentsHost } from '@nestjs/common';
-import { HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiException } from '../errors/api-exception';
 import { HttpExceptionFilter } from './http-exception.filter';
@@ -56,6 +56,30 @@ describe('HttpExceptionFilter', () => {
         message: 'Validation failed',
         details: ['originalUrl must be a valid http(s) URL'],
       },
+    });
+  });
+
+  it('UNIT-BE-43: голый NotFoundException от роутера Nest -> 404 NOT_FOUND, а не INTERNAL_ERROR', () => {
+    const { host, status, json } = createHost();
+
+    filter.catch(new NotFoundException('Cannot GET /api/links/999'), host);
+
+    expect(status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({
+      data: null,
+      error: { code: 'NOT_FOUND', message: 'Route GET /api/links/999 was not found' },
+    });
+  });
+
+  it('UNIT-BE-44: голый HttpException с нештатным статусом приводится к 500 — пары «код + статус» вне реестра быть не должно', () => {
+    const { host, status, json } = createHost();
+
+    filter.catch(new HttpException('Payload too large', HttpStatus.PAYLOAD_TOO_LARGE), host);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      data: null,
+      error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
     });
   });
 

@@ -7,6 +7,24 @@ Nest.js API на :8080. Контракт — `docs/api/contract.md` + `error-cod
 - vitest + `unplugin-swc` (без SWC vitest не переваривает декораторы Nest).
 - `npm test` = `vitest run`, не watch — иначе `make test-unit` зависает.
 
+## Структура кода — обязательно
+- **Все фиче-модули Nest лежат в `src/modules/<name>/`.** Не в корне `src/`. Инфраструктура (`common/`, `config/`, `database/`, `main.ts`, `app.module.ts`) остаётся на своём месте — она не модуль.
+- **Тесты модуля лежат в его папке `tests/`**: `src/modules/links/tests/links.service.spec.ts`. Не рядом с исходником. Для инфраструктуры — так же: `src/common/tests/`.
+- **Один класс на файл контроллера.** Два контроллера — два файла: `link-stats.controller.ts` и `stats.controller.ts`, а не один файл с двумя классами. Правило распространяется и на сервисы: файл `*.service.ts` объявляет ровно один `@Injectable`.
+
+Ожидаемая раскладка модуля:
+```
+src/modules/links/
+├── links.module.ts
+├── links.controller.ts
+├── links.service.ts
+├── dto/
+├── entities/
+└── tests/
+    ├── links.service.spec.ts
+    └── code-generator.service.spec.ts
+```
+
 ## Маршруты
 - **Глобального префикса нет.** Каждый контроллер объявляет полный путь: `@Controller('api/links')`, `@Controller('api/stats')`.
 - Редирект — `@Controller()` + `@Get(':code')` без префикса.
@@ -16,7 +34,7 @@ Nest.js API на :8080. Контракт — `docs/api/contract.md` + `error-cod
 ## Ошибки и конверт
 - Конверт `{ data, error }` делают `TransformInterceptor` и `HttpExceptionFilter`. **Руками в контроллерах не собирать.**
 - Ошибки бросать **только через `ApiException`** (`src/common/errors/api-exception.ts`) с кодом из `src/common/errors/error-code.ts`.
-- ⚠️ Голый `NotFoundException`/`BadRequestException` из Nest даст в ответе `code: "INTERNAL_ERROR"` с исходным HTTP-статусом — это расхождение с контрактом, где `INTERNAL_ERROR` привязан к 500. Известный дефект, ждёт решения координатора (`sprints/11-08/фаза-1.md`, раздел 4). До его закрытия — не бросать штатные исключения Nest.
+- Фильтр маппит голые исключения Nest по статусу: 404 → `NOT_FOUND`, 400 → `VALIDATION_ERROR`, всё остальное приводится к 500 `INTERNAL_ERROR` (иначе в ответе окажется пара «код + статус», которой нет в реестре). Это страховка, а не разрешение: в коде приложения всё равно бросай `ApiException` — только так в ответ попадёт доменный код вроде `LINK_NOT_FOUND`.
 - Stack trace наружу не отдаём: только в лог.
 
 ## БД
@@ -34,5 +52,5 @@ docker compose exec backend npm install && docker compose restart backend
 Перезапуск обязателен: `npm install` не трогает `.ts`, поэтому `nest --watch` не перекомпилирует сам и продолжит показывать `Cannot find module`. Тот же том использует `backend-test` — ему нужен `--force-recreate`.
 
 ## Тесты
-- Здесь — только unit на моках, спеки рядом с кодом (`*.spec.ts`). Кейсы: `docs/testing/coverage-matrix.md`, раздел UNIT-BE.
+- Здесь — только unit на моках, в папке `tests/` своего модуля (см. «Структура кода»). Кейсы: `docs/testing/coverage-matrix.md`, раздел UNIT-BE.
 - HTTP-контракт проверяется **не здесь**, а в проекте `api-tests/`. Не дублировать.

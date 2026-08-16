@@ -73,7 +73,10 @@ export function ClicksChart({
         </div>
       ) : (
         <div className={styles.chartBox}>
-          <ResponsiveContainer width="100%" height={280}>
+          {/* initialDimension — фолбэк-размер до первого реального замера
+              контейнера (ResizeObserver); нужен для рендера в jsdom (тесты,
+              где layout не считается) и не влияет на поведение в браузере. */}
+          <ResponsiveContainer width="100%" height={280} initialDimension={{ width: 600, height: 280 }}>
             <LineChart data={data?.points ?? []} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" />
               <XAxis dataKey="date" tickFormatter={formatShortDate} stroke="var(--chart-axis-text)" fontSize={12} />

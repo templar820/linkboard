@@ -8,9 +8,12 @@ import type { ApiErrorBody } from '../errors/error-code';
  *
  * - HttpException с телом { code, message, details? } (см. ApiException) —
  *   переносится в конверт как есть, с тем же HTTP-статусом.
- * - Любой другой HttpException (например, брошенный самим Nest — 404 на
- *   несуществующий маршрут, синтетические ошибки framework'а) — оборачивается
- *   с кодом INTERNAL_ERROR, но с сохранением исходного HTTP-статуса.
+ * - HttpException, брошенный самим Nest (у него нет поля `code`), маппится по
+ *   HTTP-статусу: 404 -> NOT_FOUND, 400 -> VALIDATION_ERROR. Всё остальное
+ *   считается непредвиденным и приводится к 500 INTERNAL_ERROR — так каждый
+ *   код реестра остаётся привязан к своему статусу, как требует
+ *   docs/api/error-codes.md. Раньше здесь сохранялся исходный статус, из-за
+ *   чего наружу уходил невозможный по контракту ответ «INTERNAL_ERROR + 404».
  * - Любое непойманное исключение, не являющееся HttpException — это всегда
  *   500 INTERNAL_ERROR. Полная информация (stack trace) идёт только в лог,
  *   наружу утекает исключительно { code: "INTERNAL_ERROR", message }.
@@ -25,8 +28,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     if (exception instanceof HttpException) {
-      const status = exception.getStatus();
-      const errorBody = this.toErrorBody(exception.getResponse());
+      const { status, errorBody } = this.mapHttpException(exception, request);
 
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
         this.logger.error(`${request.method} ${request.url} -> ${status} ${errorBody.code}: ${errorBody.message}`);
@@ -48,28 +50,45 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   /**
-   * Приводит тело HttpException к ApiErrorBody. Исключения, брошенные через
-   * ApiException, уже содержат { code, message, details? } — используем их
-   * as-is. Остальные (голые HttpException/BadRequestException и т.п.,
-   * которые в норме код приложения бросать не должен) получают безопасный
-   * фолбэк INTERNAL_ERROR, чтобы наружу никогда не утекло сырое тело Nest
-   * ({ statusCode, message, error }).
+   * Приводит HttpException к паре { status, errorBody }. Исключения, брошенные
+   * через ApiException, уже содержат { code, message, details? } и проходят
+   * насквозь вместе со своим статусом. Голые исключения Nest маппятся по
+   * статусу — сырое тело Nest ({ statusCode, message, error }) наружу не
+   * попадает никогда.
    */
-  private toErrorBody(rawResponse: string | object): ApiErrorBody {
+  private mapHttpException(
+    exception: HttpException,
+    request: Request,
+  ): { status: number; errorBody: ApiErrorBody } {
+    const status = exception.getStatus();
+    const rawResponse = exception.getResponse();
+
     if (typeof rawResponse === 'object' && rawResponse !== null && 'code' in rawResponse) {
       const body = rawResponse as Record<string, unknown>;
       const code = body.code as ApiErrorBody['code'];
       const message = typeof body.message === 'string' ? body.message : 'Error';
       const details = Array.isArray(body.details) ? (body.details as string[]) : undefined;
-      return details ? { code, message, details } : { code, message };
+      return { status, errorBody: details ? { code, message, details } : { code, message } };
     }
 
-    const message =
-      typeof rawResponse === 'string'
-        ? rawResponse
-        : this.extractMessage((rawResponse as Record<string, unknown>)?.message);
+    if (status === HttpStatus.NOT_FOUND) {
+      return {
+        status,
+        errorBody: { code: 'NOT_FOUND', message: `Route ${request.method} ${request.url} was not found` },
+      };
+    }
 
-    return { code: 'INTERNAL_ERROR', message };
+    if (status === HttpStatus.BAD_REQUEST) {
+      const message = this.extractMessage((rawResponse as Record<string, unknown>)?.message);
+      return { status, errorBody: { code: 'VALIDATION_ERROR', message: 'Validation failed', details: [message] } };
+    }
+
+    // Непредвиденное исключение framework'а: статус приводим к 500, иначе в
+    // ответе окажется пара «код + статус», которой нет в реестре ошибок.
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      errorBody: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+    };
   }
 
   private extractMessage(message: unknown): string {
