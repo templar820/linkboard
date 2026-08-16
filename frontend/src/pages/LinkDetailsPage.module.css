@@ -1,0 +1,12 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.stateBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+}

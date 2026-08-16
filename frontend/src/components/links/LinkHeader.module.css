@@ -1,0 +1,41 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.shortUrl {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  word-break: break-all;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.titleInput {
+  max-width: 24rem;
+  margin-bottom: var(--space-2);
+}
+
+.originalUrl {
+  margin: 0;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border: 1px solid var(--color-danger-border);
+}

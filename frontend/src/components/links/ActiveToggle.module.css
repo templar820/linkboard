@@ -1,0 +1,32 @@
+.toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 2.25rem;
+  height: 1.25rem;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-neutral-300);
+  transition: background-color var(--transition-fast);
+}
+
+.toggle:disabled {
+  opacity: 0.6;
+}
+
+.toggleOn {
+  background-color: var(--color-accent);
+}
+
+.toggleThumb {
+  width: 1rem;
+  height: 1rem;
+  border-radius: var(--radius-full);
+  background-color: var(--color-neutral-0);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.toggleOn .toggleThumb {
+  transform: translateX(1rem);
+}
