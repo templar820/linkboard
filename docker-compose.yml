@@ -90,8 +90,12 @@ services:
   # пока сервис читает и пишет в dev-базу linkboard — тесты проверяли бы не то
   # состояние, которым управляют, и попутно затирали данные разработчика.
   # Порт наружу не публикуется: обращение только по внутреннему имени.
+  # Профиль "e2e" добавлен затем же: e2e-tests и frontend-e2e тоже держат его
+  # depends_on. Без второго профиля здесь `docker compose --profile e2e ...`
+  # падает валидацией ("depends on undefined service backend-test") — Compose
+  # не подтягивает depends_on поперёк неактивных профилей автоматически.
   backend-test:
-    profiles: ["test"]
+    profiles: ["test", "e2e"]
     build:
       context: ./backend
       target: dev
@@ -102,7 +106,12 @@ services:
       NODE_ENV: development
       DATABASE_URL: ${TEST_DATABASE_URL:-postgres://linkboard:linkboard@postgres:5432/linkboard_test}
       BASE_URL: ${TEST_BASE_URL:-http://localhost:8080}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # Не общий $CORS_ORIGIN дев-стека (тот — под frontend на localhost:3000):
+      # браузер Playwright грузит admin-panel с origin http://frontend-e2e:3000
+      # (см. сервис frontend-e2e), а не localhost — иначе браузер блокирует
+      # все fetch()-запросы из React в API как cross-origin (обнаружено live
+      # smoke-прогоном при сдаче T10, а не предположением).
+      CORS_ORIGIN: http://frontend-e2e:3000
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
@@ -115,6 +124,42 @@ services:
         - "node"
         - "-e"
         - "require('http').get('http://localhost:8080/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - linkboard
+
+  # Отдельный инстанс frontend для Playwright: тот же образ и код, что у dev
+  # frontend, но собранный с VITE_API_URL на backend-test (сеть внутри
+  # compose), а не на localhost:8080 — браузер Playwright внутри контейнера
+  # резолвит localhost как сам контейнер, а не сервис frontend/backend.
+  # Симметрично backend-test: без этого e2e-tests смотрели бы в UI, который
+  # ходит в dev-backend и dev-базу linkboard, а не в linkboard_test, которую
+  # чистит global-setup. Порт наружу не публикуется: обращение только по
+  # внутреннему имени frontend-e2e.
+  frontend-e2e:
+    profiles: ["e2e"]
+    build:
+      context: ./frontend
+      target: dev
+    container_name: linkboard-frontend-e2e
+    restart: "no"
+    environment:
+      VITE_API_URL: http://backend-test:8080
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      backend-test:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
       interval: 5s
       timeout: 5s
       retries: 20
@@ -147,15 +192,18 @@ services:
     container_name: linkboard-e2e-tests
     restart: "no"
     environment:
-      BASE_URL: http://frontend:3000
-      API_URL: http://backend:8080
+      # frontend-e2e/backend-test, не dev-инстансы: dev UI ходит в dev-backend
+      # и dev-базу linkboard, а Playwright должен видеть тот же linkboard_test,
+      # который чистит global-setup.ts.
+      BASE_URL: http://frontend-e2e:3000
+      API_URL: http://backend-test:8080
       DATABASE_URL: ${TEST_DATABASE_URL:-postgres://linkboard:linkboard@postgres:5432/linkboard_test}
     volumes:
       - ./e2e-tests/playwright-report:/app/playwright-report
     depends_on:
-      frontend:
+      frontend-e2e:
         condition: service_healthy
-      backend:
+      backend-test:
         condition: service_healthy
     networks:
       - linkboard

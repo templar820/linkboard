@@ -97,6 +97,8 @@ export function LinksTable({ links, isLoading, isError, onRetry, hasSearch }: Li
       columns={COLUMNS}
       rows={links}
       getRowKey={(link) => link.id}
+      rowTestId="links-table-row"
+      getRowDataId={(link) => link.id}
       isLoading={isLoading}
       isError={isError}
       errorContent={

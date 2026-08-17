@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AppConfigModule } from './config/app-config.module';
 import { DatabaseModule } from './database/database.module';
-import { HealthModule } from './health/health.module';
-import { LinksModule } from './links/links.module';
-import { RedirectModule } from './redirect/redirect.module';
-import { StatsModule } from './stats/stats.module';
+import { HealthModule } from './modules/health/health.module';
+import { LinksModule } from './modules/links/links.module';
+import { RedirectModule } from './modules/redirect/redirect.module';
+import { StatsModule } from './modules/stats/stats.module';
 
 /**
  * Корневой модуль. Порядок импортов на маршрутизацию не влияет: `GET /:code`
